@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server-textbelt.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server-textbelt.js"
+    }
+  ],
+  "env": {
+    "TEXTBELT_API_KEY": "@textbelt-api-key",
+    "WHISPPR_API_KEY": "@whisppr-api-key",
+    "DEMO_NUMBER_1": "@demo-number-1",
+    "DEMO_NUMBER_2": "@demo-number-2"
+  }
+}

@@ -1,0 +1,173 @@
+🚨 WHISPPR DEMO - HOW TO RUN EVERYTHING
+===============================================================================
+
+📋 PREREQUISITES
+- Node.js 18+ installed
+- iOS Simulator or Android Emulator
+- Your phone number already configured in backend/.env ✅
+
+===============================================================================
+⚡ QUICK START (2 TERMINALS)
+===============================================================================
+
+TERMINAL 1 - Backend:
+    cd backend
+    npm start
+
+TERMINAL 2 - Mobile App:
+    cd mobile-app
+    npx expo start
+    # Press 'i' for iOS or 'a' for Android
+
+Then press the SOS button in the app!
+
+===============================================================================
+⚙️  ONE-TIME SETUP (Only if not installed)
+===============================================================================
+
+1. Install Backend Dependencies:
+   cd backend
+   npm install
+
+2. Install Mobile Dependencies:
+   cd mobile-app
+   npm install
+
+3. Configure Mobile App (IMPORTANT!):
+   - Edit mobile-app/App.js line 20
+   - Find your IP: ipconfig getifaddr en0
+   - Change: const BACKEND_URL = 'http://YOUR_IP:3000';
+
+===============================================================================
+🧪 HOW TO TEST
+===============================================================================
+
+Test Backend:
+    cd backend
+    npm test
+    # Should send SMS to your phone!
+
+Test with curl:
+    curl http://localhost:3000/health
+    
+    curl -X POST http://localhost:3000/sos \
+      -H "Content-Type: application/json" \
+      -H "x-api-key: demo-secret-key" \
+      -d '{"name":"Test","lat":32.52,"lng":-92.63,"platform":"test"}'
+
+===============================================================================
+📱 EXPECTED RESULTS
+===============================================================================
+
+Backend Console:
+    🚨 Whisppr Emergency SOS Backend (Textbelt Edition)
+    Server running on port 3000
+    Textbelt API configured: true
+    Demo numbers configured: 1
+
+SMS on Your Phone:
+    [Whisppr DEMO] King may need help.
+    Location: https://maps.google.com/?q=32.52,-92.63
+    Platform: expo-demo
+    
+    This is an automated emergency alert.
+
+===============================================================================
+🐛 TROUBLESHOOTING
+===============================================================================
+
+"Backend won't start":
+    - Check if port 3000 is free: lsof -ti:3000
+    - Kill process: kill -9 $(lsof -ti:3000)
+
+"Mobile app can't connect":
+    - Find IP: ipconfig getifaddr en0
+    - Update mobile-app/App.js line 20
+    - Ensure backend is running
+    - Check both on same WiFi
+
+"No SMS received":
+    - Check backend console for "SMS sent successfully"
+    - Verify backend/.env has DEMO_NUMBER_1=+17135848950
+    - Check quota: curl https://textbelt.com/quota/YOUR_KEY
+
+"Tests fail":
+    - Make sure backend is running FIRST
+    - Then run npm test in NEW terminal
+
+===============================================================================
+📂 PROJECT STRUCTURE
+===============================================================================
+
+whisppr-demo/
+├── START.md              ← Quick start guide
+├── README.md             ← Complete documentation
+├── TESTING.md            ← Testing guide
+├── RUN.txt               ← This file
+│
+├── backend/              ← Node.js + Express server
+│   ├── server.js         ← Main server code
+│   ├── test.js           ← Test suite
+│   ├── package.json      ← Dependencies
+│   └── .env              ← Configuration ✅
+│
+└── mobile-app/           ← React Native + Expo
+    ├── App.js            ← Main app ⚠️ UPDATE LINE 20
+    ├── package.json      ← Dependencies
+    └── app.config.js     ← Expo config
+
+===============================================================================
+✅ CHECKLIST
+===============================================================================
+
+Setup:
+[✅] Node.js installed
+[✅] Backend .env configured (phone number set)
+[⚠️ ] Mobile App.js configured (UPDATE YOUR IP!)
+[✅] Backend dependencies installed
+[✅] Mobile dependencies installed
+
+Run:
+[ ] Backend running (Terminal 1)
+[ ] Mobile app running (Terminal 2)
+[ ] Simulator/device open
+[ ] Location permissions granted
+
+Test:
+[ ] Press SOS button
+[ ] SMS received on phone
+[ ] Google Maps link works
+
+===============================================================================
+🎯 COMPLETE RUN COMMANDS
+===============================================================================
+
+# Terminal 1 - Backend
+cd /Users/user1/Desktop/whisppr-demo/backend
+npm start
+
+# Terminal 2 - Mobile App  
+cd /Users/user1/Desktop/whisppr-demo/mobile-app
+npx expo start
+# Press 'i' for iOS or 'a' for Android
+
+# Test
+cd /Users/user1/Desktop/whisppr-demo/backend
+npm test
+
+===============================================================================
+📞 MORE HELP
+===============================================================================
+
+Read the documentation files:
+- START.md       - Quick start guide
+- README.md      - Complete guide
+- TESTING.md     - Testing instructions
+- PACKAGE.md     - Package overview
+
+===============================================================================
+🎉 THAT'S IT!
+
+Your phone number is already configured!
+Just update mobile-app/App.js line 20 with your IP, then run!
+===============================================================================
