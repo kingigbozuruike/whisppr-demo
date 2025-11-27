@@ -19,11 +19,6 @@ const config = {
   // Messaging provider: 'textbelt', 'twilio', or 'whatsapp'
   provider: process.env.SMS_PROVIDER || 'whatsapp', // Default to WhatsApp
   
-  textbelt: {
-    apiKey: process.env.TEXTBELT_API_KEY || '40a3b99250b28aa1ecd3ee7fb37ec7a31bdc442dIcJZydgXa4mz5YKqmKbd8PElr',
-    apiUrl: 'https://textbelt.com/text',
-  },
-  
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID,
     authToken: process.env.TWILIO_AUTH_TOKEN,
@@ -45,8 +40,8 @@ const config = {
   
   // Demo numbers - hard-coded for demo (replace with your numbers)
   demoNumbers: [
-    process.env.DEMO_NUMBER_1 || '+12345678901',
-    process.env.DEMO_NUMBER_2 || null,
+    process.env.DEMO_NUMBER_1,
+    process.env.DEMO_NUMBER_2,
   ].filter(num => num && !num.includes('12345')), // Filter out placeholder numbers
 };
 
