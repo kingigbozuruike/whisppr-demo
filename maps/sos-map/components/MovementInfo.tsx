@@ -70,44 +70,49 @@ export default function MovementInfo({ currentLocation, previousLocation }: Move
 	const { status, color } = getMovementStatus(speed);
 	
 	return (
-		<div className="bg-[#141B2B]/95 backdrop-blur-xl px-5 py-3 rounded-xl border border-[#2A3344] shadow-2xl">
-			<div className="flex items-center gap-6">
+		<div className="bg-[#141B2B]/95 backdrop-blur-xl px-3 sm:px-5 py-2 sm:py-3 rounded-xl border border-[#2A3344] shadow-2xl">
+			<div className="flex items-center gap-3 sm:gap-6">
 				{/* Direction */}
-				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-full bg-[#1E2738] flex items-center justify-center">
-						<span className="text-2xl text-[#77FF77]">{arrow}</span>
+				<div className="flex items-center gap-2 sm:gap-3">
+					<div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-[#1E2738] flex items-center justify-center">
+						<span className="text-xl sm:text-2xl text-[#77FF77]">{arrow}</span>
 					</div>
-					<div>
+					<div className="hidden sm:block">
 						<p className="text-xs text-[#B4BAC8] uppercase tracking-wide">Heading</p>
 						<p className="text-white font-semibold">{direction}</p>
 					</div>
 				</div>
 				
-				{/* Divider */}
-				<div className="w-px h-10 bg-[#2A3344]"></div>
+				{/* Divider - hidden on small screens */}
+				<div className="hidden sm:block w-px h-10 bg-[#2A3344]"></div>
 				
 				{/* Speed */}
-				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-full bg-[#1E2738] flex items-center justify-center">
-						<svg className="w-5 h-5 text-[#77FF77]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div className="flex items-center gap-2 sm:gap-3">
+					<div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-[#1E2738] flex items-center justify-center">
+						<svg className="w-4 sm:w-5 h-4 sm:h-5 text-[#77FF77]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
 						</svg>
 					</div>
 					<div>
-						<p className="text-xs text-[#B4BAC8] uppercase tracking-wide">Speed</p>
-						<p className="text-white font-semibold">
-							{speedMph} <span className="text-xs text-[#B4BAC8]">mph</span>
+						<p className="text-[10px] sm:text-xs text-[#B4BAC8] uppercase tracking-wide">Speed</p>
+						<p className="text-white font-semibold text-sm sm:text-base">
+							{speedMph} <span className="text-[10px] sm:text-xs text-[#B4BAC8]">mph</span>
 						</p>
 					</div>
 				</div>
 				
-				{/* Divider */}
-				<div className="w-px h-10 bg-[#2A3344]"></div>
+				{/* Divider - hidden on small screens */}
+				<div className="hidden sm:block w-px h-10 bg-[#2A3344]"></div>
 				
 				{/* Movement Status */}
-				<div>
+				<div className="hidden sm:block">
 					<p className="text-xs text-[#B4BAC8] uppercase tracking-wide">Status</p>
 					<p className={`font-semibold ${color}`}>{status}</p>
+				</div>
+				
+				{/* Mobile status badge */}
+				<div className={`sm:hidden px-2 py-1 rounded-full text-xs font-semibold ${color} bg-[#1E2738]`}>
+					{status}
 				</div>
 			</div>
 		</div>

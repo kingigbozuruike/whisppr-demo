@@ -17,6 +17,8 @@
   --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Custom breakpoints for better mobile support */
+  --breakpoint-xs: 475px;
 }
 
 body {
@@ -26,4 +28,17 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  /* Prevent iOS zoom on input focus */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Safe area insets for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

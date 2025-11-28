@@ -207,30 +207,30 @@ export default function TriggerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-black text-white flex flex-col safe-area-top safe-area-bottom">
       {/* Header */}
-      <header className="p-4 border-b border-gray-800">
-        <h1 className="text-xl font-bold text-center">
+      <header className="p-3 sm:p-4 border-b border-gray-800">
+        <h1 className="text-lg sm:text-xl font-bold text-center">
           <span className="text-[#77FF77]">Whisppr</span> SOS
         </h1>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
         {state === 'idle' && (
           <>
-            <p className="text-gray-400 text-center mb-8 max-w-xs">
+            <p className="text-gray-400 text-center mb-6 sm:mb-8 max-w-xs text-sm sm:text-base">
               Press the button below to trigger an emergency SOS alert
             </p>
             <button
               onClick={triggerSOS}
-              className="w-48 h-48 rounded-full bg-red-600 hover:bg-red-700 active:bg-red-800 
+              className="w-40 h-40 sm:w-48 sm:h-48 rounded-full bg-red-600 hover:bg-red-700 active:bg-red-800 
                          flex items-center justify-center shadow-lg shadow-red-600/30
-                         transition-all duration-150 active:scale-95"
+                         transition-all duration-150 active:scale-95 touch-manipulation"
             >
-              <span className="text-2xl font-bold">SOS</span>
+              <span className="text-xl sm:text-2xl font-bold">SOS</span>
             </button>
-            <p className="text-gray-500 text-sm mt-6">
+            <p className="text-gray-500 text-xs sm:text-sm mt-4 sm:mt-6">
               Tap to send emergency alert
             </p>
           </>
@@ -238,54 +238,54 @@ export default function TriggerPage() {
 
         {state === 'getting-location' && (
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 border-4 border-[#77FF77] border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-lg">Getting your location...</p>
+            <div className="w-14 h-14 sm:w-16 sm:h-16 border-4 border-[#77FF77] border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-base sm:text-lg">Getting your location...</p>
           </div>
         )}
 
         {state === 'sending' && (
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 border-4 border-[#77FF77] border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-lg">Sending SOS alert...</p>
+            <div className="w-14 h-14 sm:w-16 sm:h-16 border-4 border-[#77FF77] border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-base sm:text-lg">Sending SOS alert...</p>
           </div>
         )}
 
         {state === 'active' && (
-          <div className="flex flex-col items-center w-full max-w-sm">
+          <div className="flex flex-col items-center w-full max-w-sm px-2">
             {/* Pulsing indicator */}
-            <div className="relative mb-6">
-              <div className="w-24 h-24 rounded-full bg-red-600 flex items-center justify-center">
-                <span className="text-lg font-bold">LIVE</span>
+            <div className="relative mb-4 sm:mb-6">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-600 flex items-center justify-center">
+                <span className="text-base sm:text-lg font-bold">LIVE</span>
               </div>
-              <div className="absolute inset-0 w-24 h-24 rounded-full bg-red-600 animate-ping opacity-30" />
+              <div className="absolute inset-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-red-600 animate-ping opacity-30" />
             </div>
 
-            <h2 className="text-xl font-bold mb-2">SOS Active</h2>
-            <p className="text-gray-400 mb-6">Emergency contacts notified</p>
+            <h2 className="text-lg sm:text-xl font-bold mb-1.5 sm:mb-2">SOS Active</h2>
+            <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-6">Emergency contacts notified</p>
 
             {/* Stats */}
-            <div className="w-full bg-gray-900 rounded-lg p-4 mb-4">
-              <div className="grid grid-cols-2 gap-4 text-center">
+            <div className="w-full bg-gray-900 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-center">
                 <div>
-                  <p className="text-2xl font-bold text-[#77FF77]">{formatTime(elapsedTime)}</p>
-                  <p className="text-xs text-gray-500">Duration</p>
+                  <p className="text-xl sm:text-2xl font-bold text-[#77FF77]">{formatTime(elapsedTime)}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500">Duration</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-[#77FF77]">{updateCount}</p>
-                  <p className="text-xs text-gray-500">Updates Sent</p>
+                  <p className="text-xl sm:text-2xl font-bold text-[#77FF77]">{updateCount}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500">Updates Sent</p>
                 </div>
               </div>
             </div>
 
             {/* Location info */}
             {location && (
-              <div className="w-full bg-gray-900 rounded-lg p-4 mb-4">
-                <p className="text-xs text-gray-500 mb-1">Current Location</p>
-                <p className="text-sm font-mono">
+              <div className="w-full bg-gray-900 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
+                <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Current Location</p>
+                <p className="text-xs sm:text-sm font-mono">
                   {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                 </p>
                 {location.accuracy && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
                     Accuracy: ±{Math.round(location.accuracy)}m
                   </p>
                 )}
@@ -298,38 +298,38 @@ export default function TriggerPage() {
                 href={`/sos/${shortId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full bg-gray-800 hover:bg-gray-700 rounded-lg p-4 mb-4 text-center transition-colors"
+                className="w-full bg-gray-800 hover:bg-gray-700 active:bg-gray-600 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4 text-center transition-colors touch-manipulation"
               >
-                <p className="text-[#77FF77] font-medium">View Live Map →</p>
-                <p className="text-xs text-gray-500 mt-1">maps.whisppr.us/sos/{shortId}</p>
+                <p className="text-[#77FF77] font-medium text-sm sm:text-base">View Live Map →</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1 break-all">maps.whisppr.us/sos/{shortId}</p>
               </a>
             )}
 
             {/* Cancel button */}
             <button
               onClick={cancelSOS}
-              className="w-full py-4 bg-gray-800 hover:bg-gray-700 rounded-lg font-medium transition-colors"
+              className="w-full py-3 sm:py-4 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 rounded-lg font-medium transition-colors touch-manipulation text-sm sm:text-base"
             >
               End SOS
             </button>
 
             {/* Keep open warning */}
-            <p className="text-xs text-gray-600 mt-4 text-center">
+            <p className="text-[10px] sm:text-xs text-gray-600 mt-3 sm:mt-4 text-center">
               ⚠️ Keep this page open for continuous tracking
             </p>
           </div>
         )}
 
         {state === 'error' && (
-          <div className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full bg-red-900 flex items-center justify-center mb-4">
-              <span className="text-2xl">!</span>
+          <div className="flex flex-col items-center text-center px-4">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-900 flex items-center justify-center mb-4">
+              <span className="text-xl sm:text-2xl">!</span>
             </div>
-            <h2 className="text-xl font-bold mb-2">Error</h2>
-            <p className="text-red-400 mb-6 max-w-xs">{error}</p>
+            <h2 className="text-lg sm:text-xl font-bold mb-2">Error</h2>
+            <p className="text-red-400 mb-4 sm:mb-6 max-w-xs text-sm sm:text-base">{error}</p>
             <button
               onClick={() => setState('idle')}
-              className="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-medium transition-colors"
+              className="px-6 sm:px-8 py-2.5 sm:py-3 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 rounded-lg font-medium transition-colors touch-manipulation text-sm sm:text-base"
             >
               Try Again
             </button>
@@ -338,9 +338,9 @@ export default function TriggerPage() {
       </main>
 
       {/* Footer */}
-      <footer className="p-4 text-center text-gray-600 text-xs">
+      <footer className="p-3 sm:p-4 text-center text-gray-600 text-[10px] sm:text-xs">
         <p>Add to Home Screen for quick access</p>
-        {/* v1.0.1 */}
+        {/* v1.0.2 */}
       </footer>
     </div>
   );

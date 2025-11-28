@@ -204,53 +204,55 @@ export default function SOSPage() {
 	return (
 		<div className="fixed inset-0 bg-[#0A0F1A]">
 			{/* Whisppr Logo - Top Left */}
-			<div className="absolute top-4 left-4 z-50">
-				<div className="bg-[#141B2B]/95 backdrop-blur-xl px-4 py-3 rounded-xl border border-[#2A3344] shadow-2xl">
-					<h1 className="text-xl font-bold">
+			<div className="absolute top-2 sm:top-4 left-2 sm:left-4 z-50">
+				<div className="bg-[#141B2B]/95 backdrop-blur-xl px-3 sm:px-4 py-2 sm:py-3 rounded-xl border border-[#2A3344] shadow-2xl">
+					<h1 className="text-lg sm:text-xl font-bold">
 						<span className="text-white">Whisppr</span>
 						<span className="text-[#77FF77]">.</span>
-						<span className="text-[#B4BAC8] text-sm ml-1">Maps</span>
+						<span className="text-[#B4BAC8] text-xs sm:text-sm ml-1 hidden sm:inline">Maps</span>
 					</h1>
 				</div>
 			</div>
 
-			{/* Movement Info - Top Center */}
-			<div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+			{/* Movement Info - Top Center (hidden on very small screens, shown below logo on mobile) */}
+			<div className="absolute top-2 sm:top-4 left-1/2 transform -translate-x-1/2 z-50 hidden xs:block">
 				<MovementInfo currentLocation={currentLocation} />
 			</div>
 
 			{/* Connection Status - Top Right */}
-			<div className="absolute top-4 right-4 z-50 flex flex-col gap-3">
+			<div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex flex-col gap-2 sm:gap-3">
 				{/* Connection Status */}
-				<div className="bg-[#141B2B]/95 backdrop-blur-xl px-4 py-3 rounded-xl border border-[#2A3344] shadow-2xl">
-					<div className="flex items-center gap-3">
-						<div className="flex items-center gap-2">
+				<div className="bg-[#141B2B]/95 backdrop-blur-xl px-3 sm:px-4 py-2 sm:py-3 rounded-xl border border-[#2A3344] shadow-2xl">
+					<div className="flex items-center gap-2 sm:gap-3">
+						<div className="flex items-center gap-1.5 sm:gap-2">
 							<span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#77FF77] animate-pulse' : 'bg-red-500'}`}></span>
-							<span className="text-sm text-[#B4BAC8]">
-								{isConnected ? 'Connected' : 'Disconnected'}
+							<span className="text-xs sm:text-sm text-[#B4BAC8]">
+								{isConnected ? 'Live' : 'Offline'}
 							</span>
 						</div>
 						{isSubscribed && (
-							<span className="text-xs text-[#77FF77] flex items-center gap-1">
+							<span className="text-[10px] sm:text-xs text-[#77FF77] hidden sm:flex items-center gap-1">
 								<span className="w-1.5 h-1.5 rounded-full bg-[#77FF77]"></span>
 								Live
 							</span>
 						)}
 						{wsError && (
-							<span className="text-xs text-yellow-400">⚠️ {wsError}</span>
+							<span className="text-[10px] sm:text-xs text-yellow-400 hidden sm:inline">⚠️</span>
 						)}
 					</div>
 				</div>
 
-				{/* Area Caution - Below Connection Status */}
-				<AreaCaution 
-					lat={currentLocation.lat}
-					lng={currentLocation.lng}
-				/>
+				{/* Area Caution - Hidden on small screens */}
+				<div className="hidden sm:block">
+					<AreaCaution 
+						lat={currentLocation.lat}
+						lng={currentLocation.lng}
+					/>
+				</div>
 			</div>
 
 			{/* Health Info - Bottom Left */}
-			<div className="absolute bottom-4 left-4 z-50">
+			<div className="absolute bottom-4 left-2 sm:left-4 z-50">
 				<HealthInfo 
 					userName={sosData.session.userName}
 					phoneNumber={sosData.session.phoneNumber}

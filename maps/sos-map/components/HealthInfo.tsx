@@ -51,7 +51,7 @@ export default function HealthInfo({ userName, phoneNumber }: HealthInfoProps) {
 
 			{/* Expanded State - Full Panel */}
 			{isExpanded && (
-				<div className="absolute bottom-0 left-0 bg-[#141B2B]/98 backdrop-blur-xl rounded-2xl border border-[#2A3344] shadow-2xl overflow-hidden w-80 animate-in slide-in-from-bottom duration-300">
+				<div className="absolute bottom-0 left-0 bg-[#141B2B]/98 backdrop-blur-xl rounded-2xl border border-[#2A3344] shadow-2xl overflow-hidden w-[calc(100vw-32px)] sm:w-80 max-w-80 animate-in slide-in-from-bottom duration-300">
 					{/* Header */}
 					<div className="px-5 py-4 border-b border-[#2A3344] flex items-center justify-between">
 						<div className="flex items-center gap-2">
