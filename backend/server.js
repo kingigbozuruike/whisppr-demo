@@ -303,8 +303,8 @@ const sendBatchWhatsApp = async (name, lat, lng, platform, mapUrl = null) => {
     hour12: true 
   });
   
-  // Include live tracking URL if available
-  const mapLink = mapUrl ? `\n\n📍 *LIVE TRACKING:*\n${mapUrl}\n\n_Tap the link above to track in real-time_` : '';
+  // Include live tracking URL if available - put URL on clean line for WhatsApp link detection
+  const mapLink = mapUrl ? `\n\n📍 *LIVE TRACKING*\n\n${mapUrl}\n\n_Tap the link above to track in real-time_` : '';
 
   const alertMessage = `🚨 *EMERGENCY ALERT*
 

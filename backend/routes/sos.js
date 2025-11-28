@@ -73,7 +73,18 @@ router.post('/sos', sosCreationLimiter, authenticateAPI, async (req, res) => {
     let alertsFailed = 0;
 
     if (channel === 'whatsapp' && emergencyContacts.length > 0) {
-      const alertMessage = `🚨 *EMERGENCY ALERT*\n\n${name} needs help!\n\n📱 *Platform:* ${platform}\n⏰ *Time:* ${new Date().toLocaleString()}\n📍 *Live Location:* ${mapUrl}\n\nThis link shows their live location for the next 4 hours.`;
+      const alertMessage = `🚨 *EMERGENCY ALERT*
+
+${name} needs help!
+
+📱 *Platform:* ${platform}
+⏰ *Time:* ${new Date().toLocaleString()}
+
+📍 *LIVE TRACKING*
+
+${mapUrl}
+
+_Tap the link above to track in real-time for the next 4 hours._`;
 
       for (const contact of emergencyContacts) {
         try {
