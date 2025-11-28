@@ -340,6 +340,7 @@ export default function TriggerPage() {
       {/* Footer */}
       <footer className="p-4 text-center text-gray-600 text-xs">
         <p>Add to Home Screen for quick access</p>
+        {/* v1.0.1 */}
       </footer>
     </div>
   );
