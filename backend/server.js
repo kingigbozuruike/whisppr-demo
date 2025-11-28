@@ -308,7 +308,9 @@ const sendBatchWhatsApp = async (name, lat, lng, platform, mapUrl = null) => {
 
   const alertMessage = `🚨 *EMERGENCY ALERT*
 
-${name} may need help!⏰ Time: ${timestamp}
+${name} may need help!
+
+⏰ Time: ${timestamp}
 📱 Platform: ${platform || 'mobile-app'}${mapLink}
 
 A current location pin will follow.`;

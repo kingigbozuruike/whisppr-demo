@@ -140,11 +140,11 @@ export default function TriggerPage() {
 
       const data = await response.json();
       
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to create SOS');
+      if (data.status !== 'ok' && !data.success) {
+        throw new Error(data.message || data.error || 'Failed to create SOS');
       }
 
-      const newShortId = data.data.shortId;
+      const newShortId = data.data?.shortId || data.shortId;
       setShortId(newShortId);
       setState('active');
 
