@@ -82,7 +82,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
 // Backend URL - Replace with your deployed backend URL
 // IMPORTANT: Use your computer's local IP address (not localhost) for physical devices
 // Your current IP: 10.0.9.54 (updated Nov 28, 2025)
-const BACKEND_URL = 'http://10.0.9.54:3000';
+const BACKEND_URL = 'https://whisppr-demo.onrender.com';
 const API_KEY = Constants.expoConfig?.extra?.apiKey || 'demo-secret-key';
 
 // User's name and phone (in production, this would come from user profile)
