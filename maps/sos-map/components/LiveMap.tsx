@@ -10,7 +10,7 @@ import mapboxgl from 'mapbox-gl';
 import { Location } from '@/types/sos';
 
 // Set Mapbox access token
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
 interface LiveMapProps {
 	initialLocation: Location;
