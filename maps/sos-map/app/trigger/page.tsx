@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://whisppr-demo.onrender.com/api';
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'demo-secret-key';
 
 type SOSState = 'idle' | 'getting-location' | 'sending' | 'active' | 'error';
 
@@ -66,7 +67,10 @@ export default function TriggerPage() {
     try {
       await fetch(`${API_BASE_URL}/sos/${sosShortId}/location`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY,
+        },
         body: JSON.stringify({
           latitude: loc.latitude,
           longitude: loc.longitude,
@@ -119,7 +123,10 @@ export default function TriggerPage() {
       setState('sending');
       const response = await fetch(`${API_BASE_URL}/sos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY,
+        },
         body: JSON.stringify({
           userName: 'John Doe',
           userPhone: '+1234567890',
