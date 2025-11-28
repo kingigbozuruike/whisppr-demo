@@ -304,13 +304,11 @@ const sendBatchWhatsApp = async (name, lat, lng, platform, mapUrl = null) => {
   });
   
   // Include live tracking URL if available
-  const mapLink = mapUrl ? `\n\n📍 *LIVE LOCATION:*\n${mapUrl}\n\n_Track their location in real-time_` : '';
-  
+  const mapLink = mapUrl ? `\n\n📍 *LIVE TRACKING:*\n${mapUrl}\n\n_Tap the link above to track in real-time_` : '';
+
   const alertMessage = `🚨 *EMERGENCY ALERT*
 
-${name} may need help!
-
-⏰ Time: ${timestamp}
+${name} may need help!⏰ Time: ${timestamp}
 📱 Platform: ${platform || 'mobile-app'}${mapLink}
 
 A current location pin will follow.`;
