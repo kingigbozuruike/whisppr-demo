@@ -7,8 +7,19 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const sosService = require('./db/sosService');
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 
 // ============================================================================
@@ -90,15 +101,17 @@ const authenticateRequest = (req, res, next) => {
 /**
  * Format SMS message with user info and location
  */
-const formatSMSMessage = (name, lat, lng, platform) => {
-  // Note: URLs removed - Textbelt requires verification to send URLs
+const formatSMSMessage = (name, lat, lng, platform, mapUrl = null) => {
+  // Note: Some SMS providers require verification to send URLs
   // Whitelist your key at: https://textbelt.com/whitelist
   
-  return `[Whisppr DEMO] ${name} may need help.
-Location: ${lat}, ${lng}
+  const mapLink = mapUrl ? `\nLive Tracking: ${mapUrl}` : '';
+  
+  return `[Whisppr] ${name} may need help!
+Location: ${lat}, ${lng}${mapLink}
 Platform: ${platform || 'mobile-app'}
 
-Emergency alert. Search coordinates in maps.`;
+Emergency alert - please respond.`;
 };
 
 /**
@@ -267,7 +280,7 @@ const sendWhatsAppMessage = async (phoneNumber, message, type = 'text', location
 /**
  * Send WhatsApp emergency alert (text + location) to all demo numbers
  */
-const sendBatchWhatsApp = async (name, lat, lng, platform) => {
+const sendBatchWhatsApp = async (name, lat, lng, platform, mapUrl = null) => {
   if (config.demoNumbers.length === 0) {
     console.log('⚠ No demo numbers configured');
     return {
@@ -290,14 +303,17 @@ const sendBatchWhatsApp = async (name, lat, lng, platform) => {
     hour12: true 
   });
   
-  const alertMessage = `🚨 EMERGENCY ALERT
+  // Include live tracking URL if available
+  const mapLink = mapUrl ? `\n\n📍 *LIVE LOCATION:*\n${mapUrl}\n\n_Track their location in real-time_` : '';
+  
+  const alertMessage = `🚨 *EMERGENCY ALERT*
 
 ${name} may need help!
 
-Platform: ${platform || 'mobile-app'}
-Time: ${timestamp}
+⏰ Time: ${timestamp}
+📱 Platform: ${platform || 'mobile-app'}${mapLink}
 
-A location pin will follow.`;
+A current location pin will follow.`;
 
   const locationData = {
     latitude: parseFloat(lat),
@@ -337,12 +353,14 @@ A location pin will follow.`;
 /**
  * Send alerts using configured provider
  */
-const sendAlerts = async (name, lat, lng, platform) => {
+const sendAlerts = async (name, lat, lng, platform, shortId = null) => {
+  const mapUrl = shortId ? `${process.env.MAP_BASE_URL || 'http://localhost:3001'}/sos/${shortId}` : null;
+  
   if (config.provider === 'whatsapp') {
-    return await sendBatchWhatsApp(name, lat, lng, platform);
+    return await sendBatchWhatsApp(name, lat, lng, platform, mapUrl);
   } else {
     // SMS (Textbelt/Twilio)
-    const message = formatSMSMessage(name, lat, lng, platform);
+    const message = formatSMSMessage(name, lat, lng, platform, mapUrl);
     return await sendBatchSMS(message);
   }
 };
@@ -381,7 +399,8 @@ app.get('/health', (req, res) => {
  *   "name": "King",
  *   "lat": 32.52,
  *   "lng": -92.63,
- *   "platform": "expo-demo"
+ *   "platform": "expo-demo",
+ *   "phoneNumber": "+1234567890"
  * }
  */
 app.post('/sos', authenticateRequest, async (req, res) => {
@@ -395,13 +414,15 @@ app.post('/sos', authenticateRequest, async (req, res) => {
       lng, 
       latitude, 
       longitude, 
-      platform 
+      platform,
+      phoneNumber
     } = req.body;
     
     // Use lat/lng or latitude/longitude
     const finalLat = lat || latitude;
     const finalLng = lng || longitude;
     const finalName = name || 'Someone';
+    const finalPhone = phoneNumber || '+10000000000';
     
     // Validate required fields
     if (!finalLat || !finalLng) {
@@ -441,7 +462,32 @@ app.post('/sos', authenticateRequest, async (req, res) => {
     console.log(`Provider: ${config.provider.toUpperCase()}`);
     console.log('='.repeat(60));
     
-    // Return success immediately (fast response)
+    // Create user and SOS session in database
+    let session;
+    try {
+      const user = await sosService.getOrCreateUser(finalPhone, finalName);
+      session = await sosService.createSosSession({
+        userId: user.id,
+        lat: parsedLat,
+        lng: parsedLng,
+        platform: platform || 'unknown',
+        deviceInfo: 'Mobile App',
+        expiryHours: 4
+      });
+      console.log(`✓ Session created: ${session.shortId}`);
+    } catch (dbError) {
+      console.error('Database error:', dbError.message);
+      // Continue without database - generate a temporary ID
+      session = {
+        shortId: 'TEMP' + Date.now().toString(36).toUpperCase(),
+        id: 'temp-' + Date.now()
+      };
+    }
+    
+    // Build map URL
+    const mapUrl = `${process.env.MAP_BASE_URL || 'http://localhost:3001'}/sos/${session.shortId}`;
+    
+    // Return success with session info
     const responseTime = Date.now() - startTime;
     res.json({
       status: 'ok',
@@ -449,10 +495,15 @@ app.post('/sos', authenticateRequest, async (req, res) => {
       recipients: config.demoNumbers.length,
       provider: config.provider,
       responseTime: responseTime,
+      data: {
+        shortId: session.shortId,
+        sosId: session.id,
+        mapUrl: mapUrl,
+      }
     });
     
     // Send alerts asynchronously (non-blocking)
-    sendAlerts(finalName, parsedLat, parsedLng, platform)
+    sendAlerts(finalName, parsedLat, parsedLng, platform, session.shortId)
       .then(summary => {
         console.log(`✓ ${config.provider.toUpperCase()} batch completed`);
         console.log(`  Success: ${summary.successful}/${summary.total}`);
@@ -488,6 +539,187 @@ app.post('/api/sos', authenticateRequest, async (req, res) => {
   app._router.handle(req, res);
 });
 
+/**
+ * Location Update Endpoint
+ * POST /api/sos/:shortId/location
+ * 
+ * Updates the live location for an active SOS session
+ */
+app.post('/api/sos/:shortId/location', authenticateRequest, async (req, res) => {
+  try {
+    const { shortId } = req.params;
+    const { lat, lng, accuracy, altitude, speed, heading, batteryLevel, timestamp } = req.body;
+
+    // Validate required fields
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({
+        status: 'error',
+        error: 'Missing required fields: lat, lng'
+      });
+    }
+
+    // Get session from database
+    const session = await sosService.getSessionByShortId(shortId);
+    if (!session) {
+      return res.status(404).json({
+        status: 'error',
+        error: 'SOS session not found'
+      });
+    }
+
+    // Check if session is still active
+    if (session.status !== 'active') {
+      return res.status(403).json({
+        status: 'error',
+        error: 'SOS session is no longer active',
+        sessionStatus: session.status
+      });
+    }
+
+    // Check if session has expired
+    if (new Date() > new Date(session.expiresAt)) {
+      return res.status(410).json({
+        status: 'error',
+        error: 'SOS session has expired',
+        expiredAt: session.expiresAt
+      });
+    }
+
+    // Update location in database
+    await sosService.updateLocation({
+      sessionId: session.id,
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      accuracy,
+      altitude,
+      speed,
+      heading,
+      batteryLevel,
+      timestamp: timestamp ? new Date(timestamp) : new Date()
+    });
+
+    // Broadcast location update to all watchers via WebSocket
+    broadcastLocationUpdate(shortId, {
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      accuracy: accuracy ? parseFloat(accuracy) : null,
+      speed: speed ? parseFloat(speed) : null,
+      heading: heading ? parseFloat(heading) : null,
+      batteryLevel,
+      timestamp: new Date().toISOString()
+    }, {
+      status: session.status,
+      createdAt: session.createdAt
+    });
+
+    res.json({
+      status: 'ok',
+      message: 'Location updated',
+      shortId,
+      location: { lat, lng }
+    });
+
+  } catch (error) {
+    console.error('Error updating location:', error);
+    res.status(500).json({
+      status: 'error',
+      error: 'Failed to update location'
+    });
+  }
+});
+
+/**
+ * Get SOS Session Details
+ * GET /api/sos/:shortId
+ * 
+ * Returns session info and location history for the map page
+ */
+app.get('/api/sos/:shortId', async (req, res) => {
+  try {
+    const { shortId } = req.params;
+
+    const session = await sosService.getSessionByShortId(shortId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'SessionNotFound',
+        message: 'SOS session not found'
+      });
+    }
+
+    // Get location history
+    const locations = await sosService.getLocationHistory(session.id, 100);
+    
+    // Calculate session duration in minutes
+    const durationMinutes = Math.round((Date.now() - new Date(session.createdAt).getTime()) / 60000);
+    
+    // Calculate seconds since last update
+    const lastUpdateSeconds = locations.length > 0 
+      ? Math.round((Date.now() - new Date(locations[0].timestamp).getTime()) / 1000)
+      : 0;
+    
+    // Check if expired
+    const isExpired = new Date() > new Date(session.expiresAt);
+
+    // Format response to match frontend SOSData type
+    // Convert Prisma Decimal types to JavaScript numbers
+    res.json({
+      success: true,
+      data: {
+        session: {
+          sosId: session.id,
+          shortId: session.shortId,
+          status: session.status,
+          userName: session.user?.displayName || 'Unknown',
+          phoneNumber: session.user?.phoneNumber || '',
+          platform: session.platform || 'unknown',
+          deviceInfo: session.deviceInfo || 'Unknown device',
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
+          expiresAt: session.expiresAt,
+          resolvedAt: session.resolvedAt,
+          isExpired: isExpired,
+          durationMinutes: durationMinutes
+        },
+        currentLocation: {
+          lat: parseFloat(session.lastLat),
+          lng: parseFloat(session.lastLng),
+          timestamp: locations.length > 0 ? locations[0].timestamp : session.updatedAt,
+          accuracy: locations.length > 0 && locations[0].accuracy ? parseFloat(locations[0].accuracy) : null,
+          batteryLevel: locations.length > 0 ? locations[0].batteryLevel : null,
+          speed: locations.length > 0 && locations[0].speed ? parseFloat(locations[0].speed) : null,
+          heading: locations.length > 0 && locations[0].heading ? parseFloat(locations[0].heading) : null,
+          isMoving: locations.length > 0 ? locations[0].isMoving : null
+        },
+        recentLocations: locations.map(loc => ({
+          lat: parseFloat(loc.lat),
+          lng: parseFloat(loc.lng),
+          timestamp: loc.timestamp,
+          accuracy: loc.accuracy ? parseFloat(loc.accuracy) : null,
+          batteryLevel: loc.batteryLevel,
+          speed: loc.speed ? parseFloat(loc.speed) : null,
+          heading: loc.heading ? parseFloat(loc.heading) : null,
+          isMoving: loc.isMoving
+        })),
+        statistics: {
+          totalLocations: locations.length,
+          distanceTraveled: null, // Could calculate from location history
+          averageSpeed: null, // Could calculate from speeds
+          lastUpdateSeconds: lastUpdateSeconds
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching session:', error);
+    res.status(500).json({
+      success: false,
+      error: 'InternalError',
+      message: 'Failed to fetch SOS session'
+    });
+  }
+});
+
 // ============================================================================
 // ERROR HANDLING
 // ============================================================================
@@ -510,10 +742,101 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================================================
+// WEBSOCKET (SOCKET.IO) HANDLERS
+// ============================================================================
+
+io.on('connection', (socket) => {
+  console.log(`📡 Client connected: ${socket.id}`);
+
+  // Subscribe to SOS session updates
+  socket.on('subscribe', (data) => {
+    // Handle both { shortId } object and plain string
+    const shortId = typeof data === 'string' ? data : data.shortId;
+    
+    if (!shortId) {
+      socket.emit('subscribe_error', { error: 'Invalid', message: 'shortId is required' });
+      return;
+    }
+    
+    socket.join(shortId);
+    console.log(`📡 Client ${socket.id} subscribed to session: ${shortId}`);
+    
+    // Get current watcher count
+    const room = io.sockets.adapter.rooms.get(shortId);
+    const watcherCount = room ? room.size : 0;
+    
+    // Notify all watchers of new count
+    io.to(shortId).emit('watcher_count', {
+      type: 'watcher_count',
+      shortId,
+      count: watcherCount
+    });
+    
+    // Confirm subscription
+    socket.emit('subscribed', {
+      type: 'subscribed',
+      shortId,
+      watcherCount
+    });
+  });
+
+  // Unsubscribe from SOS session
+  socket.on('unsubscribe', (data) => {
+    const shortId = typeof data === 'string' ? data : data.shortId;
+    if (!shortId) return;
+    
+    socket.leave(shortId);
+    console.log(`📡 Client ${socket.id} unsubscribed from: ${shortId}`);
+    
+    // Update watcher count
+    const room = io.sockets.adapter.rooms.get(shortId);
+    const watcherCount = room ? room.size : 0;
+    io.to(shortId).emit('watcher_count', {
+      type: 'watcher_count',
+      shortId,
+      count: watcherCount
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`📡 Client disconnected: ${socket.id}`);
+  });
+});
+
+// Helper function to broadcast location updates
+function broadcastLocationUpdate(shortId, locationData, sessionData = {}) {
+  const now = new Date();
+  io.to(shortId).emit('location_update', {
+    type: 'location_update',
+    shortId,
+    location: locationData,
+    session: {
+      status: sessionData.status || 'active',
+      updatedAt: now.toISOString(),
+      durationMinutes: sessionData.createdAt 
+        ? Math.floor((now - new Date(sessionData.createdAt)) / 60000)
+        : 0
+    },
+    timestamp: now.toISOString()
+  });
+  console.log(`📡 Broadcast location update for ${shortId}`);
+}
+
+// Helper function to broadcast session status changes
+function broadcastSessionStatus(shortId, status) {
+  io.to(shortId).emit('session_status', {
+    type: 'session_status',
+    shortId,
+    status,
+    timestamp: new Date().toISOString()
+  });
+}
+
+// ============================================================================
 // SERVER START
 // ============================================================================
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log('='.repeat(60));
   console.log('🚨 Whisppr Emergency SOS Backend');
   console.log('='.repeat(60));

@@ -27,7 +27,53 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
 import Constants from 'expo-constants';
+
+// ============================================================================
+// BACKGROUND LOCATION TASK
+// ============================================================================
+
+const BACKGROUND_LOCATION_TASK = 'background-location-task';
+
+// Global variable to store the current session shortId for background task
+let currentShortId = null;
+
+// Define the background task (must be outside component)
+TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+  if (error) {
+    console.log('Background location error:', error);
+    return;
+  }
+  if (data && currentShortId) {
+    const { locations } = data;
+    const location = locations[0];
+    if (location) {
+      const { latitude, longitude } = location.coords;
+      console.log(`📍 Background location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+      
+      // Send to backend
+      try {
+        await fetch(`http://10.0.9.54:3000/api/sos/${currentShortId}/location`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'demo-secret-key',
+          },
+          body: JSON.stringify({
+            lat: latitude,
+            lng: longitude,
+            accuracy: location.coords.accuracy || 10,
+            timestamp: Date.now(),
+          }),
+        });
+        console.log('📍 Background location sent successfully');
+      } catch (err) {
+        console.log('⚠️ Background location send failed:', err.message);
+      }
+    }
+  }
+});
 
 // ============================================================================
 // CONFIGURATION - CHANGE BACKEND URL HERE
@@ -35,12 +81,13 @@ import Constants from 'expo-constants';
 
 // Backend URL - Replace with your deployed backend URL
 // IMPORTANT: Use your computer's local IP address (not localhost) for physical devices
-// Your current IP: 10.90.32.50 (updated Nov 26, 2025)
-const BACKEND_URL = 'http://10.90.32.50:3000';
+// Your current IP: 10.0.9.54 (updated Nov 28, 2025)
+const BACKEND_URL = 'http://10.0.9.54:3000';
 const API_KEY = Constants.expoConfig?.extra?.apiKey || 'demo-secret-key';
 
-// User's name (in production, this would come from user profile)
-const USER_NAME = 'Demo User';
+// User's name and phone (in production, this would come from user profile)
+const USER_NAME = 'John Doe';
+const USER_PHONE = '+17135848950'; // Replace with actual phone number in E.164 format
 
 // Location fetch timeout (milliseconds)
 const LOCATION_TIMEOUT = 3000;
@@ -62,6 +109,10 @@ export default function App() {
   const [lastLocation, setLastLocation] = useState(null);
   const [isWarmedUp, setIsWarmedUp] = useState(false);
   
+  // SOS session tracking
+  const [activeSession, setActiveSession] = useState(null); // { shortId, mapUrl, startTime }
+  const locationUpdateInterval = useRef(null);
+  
   // Animation values
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -74,10 +125,27 @@ export default function App() {
   }, []);
 
   /**
+   * Cleanup: Stop location updates when component unmounts
+   */
+  useEffect(() => {
+    return () => {
+      if (locationUpdateInterval.current) {
+        // Check if it's a subscription (has remove method) or an interval
+        if (typeof locationUpdateInterval.current.remove === 'function') {
+          locationUpdateInterval.current.remove();
+        } else {
+          clearInterval(locationUpdateInterval.current);
+        }
+        console.log('🛑 Location tracking stopped (cleanup)');
+      }
+    };
+  }, []);
+
+  /**
    * Pulse animation for SOS button
    */
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !activeSession) {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -95,7 +163,7 @@ export default function App() {
       pulse.start();
       return () => pulse.stop();
     }
-  }, [loading]);
+  }, [loading, activeSession]);
 
   /**
    * Initialize app: request permissions and warm up location services
@@ -250,7 +318,7 @@ export default function App() {
     try {
       console.log('Sending SOS to backend...');
       console.log(`  URL: ${BACKEND_URL}/api/sos`);
-      console.log(`  Payload: { name: "${USER_NAME}", lat: ${latitude}, lng: ${longitude} }`);
+      console.log(`  Payload: { phoneNumber: "${USER_PHONE}", name: "${USER_NAME}", lat: ${latitude}, lng: ${longitude} }`);
       
       const response = await fetch(`${BACKEND_URL}/api/sos`, {
         method: 'POST',
@@ -259,13 +327,16 @@ export default function App() {
           'x-api-key': API_KEY,
         },
         body: JSON.stringify({
+          phoneNumber: USER_PHONE,
           name: USER_NAME,
-          latitude: latitude,
-          longitude: longitude,
-          lat: latitude, // Some backends might expect "lat/lng" format
+          lat: latitude,
           lng: longitude,
-          timestamp: Date.now(),
+          accuracy: 10, // meters
+          platform: Platform.OS,
+          deviceInfo: `${Platform.OS} ${Platform.Version}`,
+          batteryLevel: 100, // Could be fetched from expo-battery
           userId: Constants.deviceId || 'demo-user',
+          timestamp: Date.now(),
         }),
         signal: controller.signal,
       });
@@ -301,6 +372,177 @@ export default function App() {
       console.log(`✗ Request failed after ${elapsed}ms:`, error.message);
       throw error;
     }
+  };
+
+  /**
+   * Send location update to existing SOS session
+   * POST /api/sos/:shortId/location with { lat, lng }
+   */
+  const sendLocationUpdate = async (shortId, latitude, longitude) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sos/${shortId}/location`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+        },
+        body: JSON.stringify({
+          lat: latitude,
+          lng: longitude,
+          accuracy: 10,
+          timestamp: Date.now(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log(`📍 Location update sent: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        return { success: true, data };
+      } else {
+        console.log(`⚠️ Location update failed: ${data.error || response.status}`);
+        return { success: false, error: data.error };
+      }
+    } catch (error) {
+      console.log(`⚠️ Location update error: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+  };
+
+  /**
+   * Start continuous location updates using watchPositionAsync
+   * This gives real GPS updates as the device moves, not cached locations
+   */
+  const startLocationUpdates = async (shortId) => {
+    console.log('🔄 Starting continuous location tracking...');
+    
+    // Store shortId globally for background task
+    currentShortId = shortId;
+    
+    // Clear any existing subscription
+    if (locationUpdateInterval.current) {
+      if (typeof locationUpdateInterval.current.remove === 'function') {
+        locationUpdateInterval.current.remove();
+      } else {
+        clearInterval(locationUpdateInterval.current);
+      }
+      locationUpdateInterval.current = null;
+    }
+
+    // Start foreground location tracking immediately
+    try {
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 5000,      // Update every 5 seconds
+          distanceInterval: 0,     // Update even if not moving (for testing)
+        },
+        async (location) => {
+          const { latitude, longitude } = location.coords;
+          console.log(`📍 GPS UPDATE: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          const result = await sendLocationUpdate(shortId, latitude, longitude);
+          if (result.success) {
+            console.log(`✅ Location sent to server`);
+          } else {
+            console.log(`❌ Failed to send: ${result.error}`);
+          }
+        }
+      );
+
+      locationUpdateInterval.current = subscription;
+      console.log('✓ Foreground location tracking ACTIVE - updates every 5 seconds');
+      
+      // Send first location immediately
+      try {
+        const initialLoc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        const { latitude, longitude } = initialLoc.coords;
+        console.log(`📍 INITIAL LOCATION: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        await sendLocationUpdate(shortId, latitude, longitude);
+      } catch (e) {
+        console.log('⚠️ Could not get initial location:', e.message);
+      }
+      
+    } catch (error) {
+      console.log('⚠️ watchPositionAsync failed:', error.message);
+      
+      // Fallback to interval-based polling
+      console.log('🔄 Using interval-based polling (every 5 seconds)...');
+      
+      const pollLocation = async () => {
+        try {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+          const { latitude, longitude } = location.coords;
+          console.log(`📍 POLLED: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          await sendLocationUpdate(shortId, latitude, longitude);
+        } catch (err) {
+          console.log('⚠️ Poll failed:', err.message);
+        }
+      };
+      
+      // Send immediately
+      await pollLocation();
+      
+      // Then every 5 seconds
+      locationUpdateInterval.current = setInterval(pollLocation, 5000);
+      console.log('✓ Interval polling ACTIVE');
+    }
+
+    // Try to request background permission (non-blocking)
+    if (Platform.OS === 'ios') {
+      Location.requestBackgroundPermissionsAsync()
+        .then(({ status }) => {
+          if (status === 'granted') {
+            console.log('✓ Background location permission granted');
+            // Start background tracking
+            Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 10000,
+              distanceInterval: 10,
+              showsBackgroundLocationIndicator: true,
+            }).then(() => {
+              console.log('✓ Background tracking started');
+            }).catch(e => {
+              console.log('⚠️ Background tracking not available in Expo Go');
+            });
+          }
+        })
+        .catch(e => console.log('⚠️ Background permission error:', e.message));
+    }
+  };
+
+  /**
+   * Stop continuous location updates (foreground and background)
+   */
+  const stopLocationUpdates = async () => {
+    // Stop foreground tracking
+    if (locationUpdateInterval.current) {
+      // Check if it's a subscription (has remove method) or an interval
+      if (typeof locationUpdateInterval.current.remove === 'function') {
+        locationUpdateInterval.current.remove();
+      } else {
+        clearInterval(locationUpdateInterval.current);
+      }
+      locationUpdateInterval.current = null;
+      console.log('🛑 Foreground location tracking stopped');
+    }
+    
+    // Stop background tracking
+    try {
+      const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+      if (isRegistered) {
+        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+        console.log('🛑 Background location tracking stopped');
+      }
+    } catch (error) {
+      console.log('⚠️ Error stopping background tracking:', error.message);
+    }
+    
+    // Clear global shortId
+    currentShortId = null;
   };
 
   /**
@@ -362,20 +604,42 @@ export default function App() {
       const totalTime = Date.now() - startTime;
       
       console.log(`\n✓ SOS COMPLETE - Total time: ${totalTime}ms`);
+      console.log('Backend Response:', result.data);
       console.log('='.repeat(50));
 
-      // Step 3: Success feedback
-      setLocationStatus('✓ Alert sent successfully!');
+      // Step 3: Parse response and store session
+      const shortId = result.data?.data?.shortId;
+      const mapUrl = result.data?.data?.mapUrl;
       
-      const contactCount = result.data?.contacts || 'unknown';
+      if (!shortId) {
+        throw new Error('Backend did not return shortId');
+      }
+
+      // Store active session
+      setActiveSession({
+        shortId,
+        mapUrl,
+        startTime: Date.now(),
+      });
+
+      console.log(`✓ Session created: ${shortId}`);
+      console.log(`✓ Map URL: ${mapUrl}`);
+
+      // Step 4: Start continuous location updates
+      startLocationUpdates(shortId);
+
+      // Step 5: Success feedback
+      setLocationStatus(`📍 Tracking active (${shortId})`);
+      
       const responseTime = (totalTime / 1000).toFixed(2);
       
       Alert.alert(
         '✅ Emergency Alert Sent',
         `Your emergency contacts have been notified with your location.\n\n` +
         `⏱ Response time: ${responseTime}s\n` +
-        `📱 Contacts notified: ${contactCount}\n` +
-        `📍 Location: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`,
+        `� Map: ${mapUrl}\n` +
+        `📍 Location updates: Every 5 seconds\n\n` +
+        `Keep this app open for live tracking.`,
         [{ text: 'OK' }]
       );
 
@@ -435,7 +699,7 @@ export default function App() {
         <Animated.View
           style={{
             transform: [
-              { scale: loading ? scaleAnim : pulseAnim },
+              { scale: loading ? scaleAnim : activeSession ? 1 : pulseAnim },
             ],
           }}
         >
@@ -443,8 +707,27 @@ export default function App() {
             style={[
               styles.sosButton,
               !hasLocationPermission && styles.sosButtonDisabled,
+              activeSession && styles.sosButtonActive,
             ]}
-            onPress={handleSOSPress}
+            onPress={activeSession ? () => {
+              Alert.alert(
+                'Stop Tracking?',
+                'This will stop sending location updates to your emergency contacts.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Stop',
+                    style: 'destructive',
+                    onPress: () => {
+                      stopLocationUpdates();
+                      setActiveSession(null);
+                      setLocationStatus('Ready to send SOS');
+                      console.log('✓ Tracking stopped by user');
+                    },
+                  },
+                ]
+              );
+            } : handleSOSPress}
             disabled={loading || !hasLocationPermission}
             activeOpacity={0.8}
           >
@@ -452,6 +735,12 @@ export default function App() {
               <>
                 <ActivityIndicator size="large" color="#FFFFFF" />
                 <Text style={styles.sosButtonSubtext}>SENDING...</Text>
+              </>
+            ) : activeSession ? (
+              <>
+                <Text style={styles.sosButtonText}>📍</Text>
+                <Text style={styles.sosButtonSubtext}>TRACKING ACTIVE</Text>
+                <Text style={styles.sosButtonTiny}>Tap to stop</Text>
               </>
             ) : (
               <>
@@ -471,16 +760,20 @@ export default function App() {
       {/* Footer Info */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Press the SOS button to send an emergency alert with your location to your emergency contacts via SMS.
+          {activeSession 
+            ? '📍 Your location is being tracked and shared with emergency contacts. Keep this app open.'
+            : 'Press the SOS button to send an emergency alert with your location to your emergency contacts via SMS.'}
         </Text>
         <Text style={styles.footerSubtext}>
-          {hasLocationPermission
-            ? isWarmedUp
-              ? '✓ Ready - Location services warmed up'
-              : '⏳ Warming up location services...'
-            : '⚠ Location permissions required'}
+          {activeSession 
+            ? `🔄 Updates every 5 seconds • Session: ${activeSession.shortId}`
+            : hasLocationPermission
+              ? isWarmedUp
+                ? '✓ Ready - Location services warmed up'
+                : '⏳ Warming up location services...'
+              : '⚠ Location permissions required'}
         </Text>
-        {lastLocation && (
+        {lastLocation && !activeSession && (
           <Text style={styles.footerSubtext}>
             📍 Last location cached for faster SOS
           </Text>
@@ -555,6 +848,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#64748B',
     shadowColor: '#64748B',
   },
+  sosButtonActive: {
+    backgroundColor: '#16A34A', // Green when tracking
+    shadowColor: '#16A34A',
+  },
   sosButtonText: {
     fontSize: 72,
     fontWeight: 'bold',
@@ -567,6 +864,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     letterSpacing: 2,
     opacity: 0.9,
+  },
+  sosButtonTiny: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 4,
   },
   statusContainer: {
     marginTop: 40,

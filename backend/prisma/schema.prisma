@@ -1,0 +1,159 @@
+// Whisppr Live SOS Maps - Database Schema
+// Optimized for fast reads (map page) and efficient writes (location updates)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS TABLE
+// ============================================================================
+// Minimal user table for MVP - expand later with emergency contacts, preferences
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  phoneNumber  String       @unique @map("phone_number") @db.VarChar(20)
+  displayName  String?      @map("display_name") @db.VarChar(100)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  
+  sosSessions  SosSession[]
+  
+  @@index([phoneNumber])
+  @@map("users")
+}
+
+// ============================================================================
+// SOS SESSIONS TABLE
+// ============================================================================
+// Core table for tracking active/historical SOS incidents
+// Uses denormalized last_lat/last_lng for fast map page loads (no JOIN needed)
+model SosSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  shortId     String    @unique @map("short_id") @db.VarChar(12)
+  userId      String    @map("user_id") @db.Uuid
+  status      String    @default("active") @db.VarChar(20) // active, resolved, cancelled, expired
+  
+  // Location tracking - denormalized for performance
+  initialLat  Decimal   @map("initial_lat") @db.Decimal(10, 8)
+  initialLng  Decimal   @map("initial_lng") @db.Decimal(11, 8)
+  lastLat     Decimal   @map("last_lat") @db.Decimal(10, 8)
+  lastLng     Decimal   @map("last_lng") @db.Decimal(11, 8)
+  
+  // Device context
+  platform    String?   @db.VarChar(20) // ios, android, web
+  deviceInfo  String?   @map("device_info") @db.Text
+  
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  expiresAt   DateTime  @map("expires_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  
+  // Relations
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locations   SosLocation[]
+  media       SosMedia[]
+  viewers     SosViewer[]
+  
+  // Performance indexes
+  @@index([shortId])
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("sos_sessions")
+}
+
+// ============================================================================
+// SOS LOCATIONS TABLE
+// ============================================================================
+// Historical breadcrumb trail of all location updates
+// Optimized for efficient inserts (BIGSERIAL) and fast breadcrumb queries
+model SosLocation {
+  id           BigInt     @id @default(autoincrement())
+  sosSessionId String     @map("sos_session_id") @db.Uuid
+  
+  // GPS coordinates (8/11 decimal places = ~1mm accuracy)
+  lat          Decimal    @db.Decimal(10, 8)
+  lng          Decimal    @db.Decimal(11, 8)
+  accuracy     Decimal?   @db.Decimal(6, 2) // Horizontal accuracy in meters
+  altitude     Decimal?   @db.Decimal(8, 2) // Elevation in meters
+  speed        Decimal?   @db.Decimal(6, 2) // Speed in m/s
+  heading      Decimal?   @db.Decimal(5, 2) // Direction in degrees (0-360)
+  
+  // Device context
+  batteryLevel Int?       @map("battery_level") // 0-100
+  isMoving     Boolean?   @map("is_moving")
+  
+  // Timestamp
+  timestamp    DateTime   @default(now())
+  
+  // Relations
+  sosSession   SosSession @relation(fields: [sosSessionId], references: [id], onDelete: Cascade)
+  
+  // Performance indexes - composite for fast breadcrumb queries
+  @@index([sosSessionId])
+  @@index([sosSessionId, timestamp(sort: Desc)])
+  @@map("sos_locations")
+}
+
+// ============================================================================
+// SOS MEDIA TABLE (Future Feature)
+// ============================================================================
+// Stores audio, video, photos uploaded during SOS
+// Files stored in S3/Cloudflare R2, only metadata in DB
+model SosMedia {
+  id              String    @id @default(uuid()) @db.Uuid
+  sosSessionId    String    @map("sos_session_id") @db.Uuid
+  
+  // Media metadata
+  mediaType       String    @map("media_type") @db.VarChar(20) // audio, video, photo
+  fileUrl         String    @map("file_url") @db.Text
+  fileSizeBytes   BigInt?   @map("file_size_bytes")
+  durationSeconds Int?      @map("duration_seconds") // For audio/video
+  mimeType        String?   @map("mime_type") @db.VarChar(50)
+  
+  // Context - where/when was this recorded
+  recordedAt      DateTime  @map("recorded_at")
+  lat             Decimal?  @db.Decimal(10, 8)
+  lng             Decimal?  @db.Decimal(11, 8)
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  sosSession      SosSession @relation(fields: [sosSessionId], references: [id], onDelete: Cascade)
+  
+  @@index([sosSessionId])
+  @@index([mediaType])
+  @@map("sos_media")
+}
+
+// ============================================================================
+// SOS VIEWERS TABLE (Future Feature)
+// ============================================================================
+// Track who is watching each SOS session (privacy audit + "X watching" UI)
+model SosViewer {
+  id               BigInt    @id @default(autoincrement())
+  sosSessionId     String    @map("sos_session_id") @db.Uuid
+  
+  // Viewer identification
+  viewerIdentifier String    @map("viewer_identifier") @db.VarChar(100) // Phone or token
+  viewerType       String    @default("contact") @map("viewer_type") @db.VarChar(20) // contact, responder, admin
+  
+  // Activity tracking
+  firstViewedAt    DateTime  @default(now()) @map("first_viewed_at")
+  lastViewedAt     DateTime  @default(now()) @map("last_viewed_at")
+  isActive         Boolean   @default(true) @map("is_active")
+  
+  // Relations
+  sosSession       SosSession @relation(fields: [sosSessionId], references: [id], onDelete: Cascade)
+  
+  @@unique([sosSessionId, viewerIdentifier])
+  @@index([sosSessionId])
+  @@index([viewerIdentifier])
+  @@map("sos_viewers")
+}

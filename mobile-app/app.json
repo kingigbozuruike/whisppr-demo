@@ -19,7 +19,8 @@
       "bundleIdentifier": "com.whisppr.demo",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Whisppr needs your location to send emergency alerts with your coordinates.",
-        "NSLocationAlwaysUsageDescription": "Whisppr needs your location to send emergency alerts even when the app is in the background."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Whisppr needs continuous access to your location to keep emergency contacts updated even when the app is in the background.",
+        "UIBackgroundModes": ["location", "fetch"]
       }
     },
     "android": {
@@ -30,7 +31,10 @@
       "package": "com.whisppr.demo",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
